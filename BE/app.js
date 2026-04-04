@@ -3,12 +3,16 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-
+let mongoose = require('mongoose')
+let cors = require('cors');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
-
 var app = express();
-
+app.use(cors({
+    origin: 'https://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}));
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -20,7 +24,18 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
+app.use('/api/v1/users', require('./routes/users'));
+app.use('/api/v1/roles', require('./routes/roles'));
+app.use('/api/auth', require('./routes/auth'));
+mongoose.connect('mongodb://localhost:27017/NNPTUD-C3');
+mongoose.connection.on('connected',()=>{
+  console.log("connected");
+})
+
+mongoose.connection.on('disconnected',()=>{
+  console.log("disconnected");
+})
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
