@@ -6,6 +6,9 @@ import { AuthProvider } from './components/AuthContext';
 import HomePage from './components/pages/HomePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './components/pages/LoginPage';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
+import AdminLayout from './components/layouts/AdminLayout';
+import AdminDashboard from './components/pages/admin/AdminDashboard';
 
 function About() {
   return <h1>About Page</h1>;
@@ -28,6 +31,16 @@ function App() {
               </>
             }
           />
+          <Route
+            path="/admin"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout />
+              </AdminProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </AuthProvider>

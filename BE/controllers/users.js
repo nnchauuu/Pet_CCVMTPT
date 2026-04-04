@@ -32,5 +32,71 @@ module.exports = {
         } catch (error) {
             return false;
         }
-    }
+    },
+    GetUserByEmail: async function (email) {
+        try {
+            return await userModel
+                .findOne({
+                    isDeleted: false,
+                    email: email
+                })
+        } catch (error) {
+            return false;
+        }
+    },
+    GetUserByToken: async function (token) {
+        try {
+            let user = await userModel
+                .findOne({
+                    isDeleted: false,
+                    forgotPasswordToken: token
+                })
+            if (user.forgotPasswordTokenExp > Date.now()) {
+                return user;
+            }
+            return false;
+        } catch (error) {
+            return false;
+        }
+    },
+    QueryLogin: async function (username, password) {
+        if (!username || !password) {
+            return false;
+        }
+        let user = await userModel.findOne({
+            username: username,
+            isDeleted: false
+        }).populate('role');
+
+        if (user) {
+            if (user.lockTime && user.lockTime > Date.now()) {
+                return false;
+            } else {
+                if (bcrypt.compareSync(password, user.password)) {
+                    user.loginCount = 0;
+                    await user.save();
+                    let token = jwt.sign({
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        role: user.role ? user.role.name : 'USER'
+                    }, 'secret', {
+                        expiresIn: '1d'
+                    })
+                    return token;
+                } else {
+                    //sai pass
+                    user.loginCount++;
+                    if (user.loginCount == 3) {
+                        user.loginCount = 0;
+                        user.lockTime = Date.now() + 3_600_000;
+                    }
+                    await user.save();
+                    return false;
+                }
+            }
+        } else {
+            return false;
+        }
+    },
 }

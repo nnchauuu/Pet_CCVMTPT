@@ -22,4 +22,23 @@ router.post('/register', RegisterValidator, validatedResult, async function (req
         res.status(404).send(error.message)
     }
 })
+router.post('/login', async function (req, res, next) {
+    let { username, password } = req.body;
+    let result = await userController.QueryLogin(username, password);
+    if (!result) {
+        res.status(404).send("thong tin dang nhap khong dung")
+    } else {
+        res.cookie("TOKEN_NNPTUD_C3", result, {
+            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: true,
+            secure: false
+        })
+        res.status(200).json({
+            success: true,
+            data: {
+                token: result
+            }
+        });
+    }
+})
 module.exports = router;
