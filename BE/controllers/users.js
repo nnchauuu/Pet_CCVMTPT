@@ -40,7 +40,7 @@ module.exports = {
                 .findOne({
                     isDeleted: false,
                     email: email
-                })
+                }).populate('role')
         } catch (error) {
             return false;
         }
