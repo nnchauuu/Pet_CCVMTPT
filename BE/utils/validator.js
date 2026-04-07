@@ -35,5 +35,17 @@ module.exports = {
             minSymbols: 1,
             minUppercase: 1
         }).withMessage("password phai co it nhat 8 ki tu trong do co it nhat 1 ki tu chu hoa, 1 ki tu chu thuong,1 ki tu so va 1 ki tu dac biet"),
+    ],
+    CreateBookingValidator: [
+        body('petId')
+            .notEmpty().withMessage("Thú cưng không được để trống")
+            .bail()
+            .isMongoId().withMessage("Mã thú cưng không hợp lệ"),
+        
+        body('services')
+            .isArray({ min: 1 }).withMessage("Phải chọn ít nhất 1 dịch vụ"),
+
+        body('scheduledAt')
+            .notEmpty().withMessage("Thời gian đặt lịch không được để trống")
     ]
 }
