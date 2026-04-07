@@ -4,28 +4,34 @@ const { uploadImage } = require("../utils/uploadHandler");
 
 const router = express.Router();
 
-router.post("/one_image", function (req, res, next) {
-  uploadImage.single("file")(req, res, function (error) {
-    if (error) {
-      return res.status(400).send({
-        success: false,
-        message: error.message || "Không thể tải ảnh thú cưng.",
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).send({
-        success: false,
-        message: "Vui lòng chọn ảnh để tải lên.",
-      });
-    }
-
-    res.send({
-      success: true,
-      filename: req.file.filename,
-      path: `/uploads/${req.file.filename}`,
-      size: req.file.size,
+router.post("/", uploadImage.single("file"), function (req, res) {
+  if (!req.file) {
+    return res.status(400).send({
+      success: false,
+      message: "File không được để trống",
     });
+  }
+
+  res.send({
+    success: true,
+    message: "Upload thành công",
+    data: `/uploads/${req.file.filename}`,
+  });
+});
+
+router.post("/one_image", uploadImage.single("file"), function (req, res) {
+  if (!req.file) {
+    return res.status(400).send({
+      success: false,
+      message: "Vui lòng chọn ảnh để tải lên.",
+    });
+  }
+
+  res.send({
+    success: true,
+    filename: req.file.filename,
+    path: `/uploads/${req.file.filename}`,
+    size: req.file.size,
   });
 });
 

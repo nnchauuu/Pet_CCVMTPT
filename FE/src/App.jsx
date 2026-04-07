@@ -1,22 +1,24 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Header from './components/layouts/Header';
-import Footer from './components/layouts/Footer';
-import RegisterPage from './components/pages/RegisterPage';
-import { AuthProvider } from './components/AuthContext';
-import HomePage from './components/pages/HomePage';
-import BookingPage from './components/pages/BookingPage';
-import BookingListPage from './components/pages/BookingListPage';
-import BookingDetailPage from './components/pages/BookingDetailPage';
-import LatestBookingDetailPage from './components/pages/LatestBookingDetailPage';
-import ProtectedRoute from './components/ProtectedRoute';
-import LoginPage from './components/pages/LoginPage';
-import MomoReturnPage from './components/pages/MomoReturnPage';
-import VnpayReturnPage from './components/pages/VnpayReturnPage';
-import VoucherPage from './components/pages/VoucherPage';
-import AdminProtectedRoute from './components/AdminProtectedRoute';
-import AdminLayout from './components/layouts/AdminLayout';
-import AdminDashboard from './components/pages/admin/AdminDashboard';
-<<<<<<< PBS-34-Xây-dựng-tính-năng-Thanh-toán-lịch-đặt-dịch-vụ
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Header from "./components/layouts/Header";
+import Footer from "./components/layouts/Footer";
+import RegisterPage from "./components/pages/RegisterPage";
+import { AuthProvider } from "./components/AuthContext";
+import HomePage from "./components/pages/HomePage";
+import BookingPage from "./components/pages/BookingPage";
+import BookingListPage from "./components/pages/BookingListPage";
+import BookingDetailPage from "./components/pages/BookingDetailPage";
+import LatestBookingDetailPage from "./components/pages/LatestBookingDetailPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+import LoginPage from "./components/pages/LoginPage";
+import MomoReturnPage from "./components/pages/MomoReturnPage";
+import VnpayReturnPage from "./components/pages/VnpayReturnPage";
+import VoucherPage from "./components/pages/VoucherPage";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import AdminLayout from "./components/layouts/AdminLayout";
+import AdminDashboard from "./components/pages/admin/AdminDashboard";
+import BookingManagement from "./components/pages/admin/BookingManagement";
+import UserManagement from "./components/pages/admin/UserManagement";
+import ServiceManagement from "./components/pages/admin/ServiceManagement";
 
 function MainLayout({ children }) {
   return (
@@ -26,12 +28,6 @@ function MainLayout({ children }) {
       <Footer />
     </>
   );
-=======
-import BookingManagement from './components/pages/admin/BookingManagement';
-import UserManagement from './components/pages/admin/UserManagement';
-function About() {
-  return <h1>About Page</h1>;
->>>>>>> dev
 }
 
 function App() {
@@ -130,6 +126,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="bookings" element={<BookingManagement />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="services" element={<ServiceManagement />} />
           </Route>
           <Route
             path="*"
