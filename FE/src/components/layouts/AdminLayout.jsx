@@ -159,9 +159,15 @@ const AdminLayout = () => {
                   </div>
                   Quản lý quyền tài khoản
                 </NavLink>
+                <NavLink
+                  to="/admin/pet-types"
+                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                >
+                  <div className="sb-nav-link-icon"><i className="fas fa-paw"></i></div>
+                  Quản lý Loại thú cưng
+                </NavLink>
               </div>
             </div>
-
             <div className="sb-sidenav-footer">
               <div className="small">Logged in as:</div>
               Admin

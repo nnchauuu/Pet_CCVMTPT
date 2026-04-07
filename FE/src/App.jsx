@@ -16,6 +16,7 @@ import VoucherPage from "./components/pages/VoucherPage";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import AdminLayout from "./components/layouts/AdminLayout";
 import AdminDashboard from "./components/pages/admin/AdminDashboard";
+import PetTypeManagement from './components/pages/admin/PetTypeManagement';
 import BookingManagement from "./components/pages/admin/BookingManagement";
 import UserManagement from "./components/pages/admin/UserManagement";
 import ServiceManagement from "./components/pages/admin/ServiceManagement";
@@ -127,6 +128,7 @@ function App() {
             <Route path="bookings" element={<BookingManagement />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="services" element={<ServiceManagement />} />
+            <Route path="pet-types" element={<PetTypeManagement />} />
           </Route>
           <Route
             path="*"
