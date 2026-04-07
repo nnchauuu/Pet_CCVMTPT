@@ -41,9 +41,11 @@ function LoginPage() {
           });
 
           if (finalRole?.toUpperCase() === "ADMIN") {
-            navigate("/admin", { replace: true });
+            const redirectPath = from.startsWith("/admin") ? from : "/admin";
+            navigate(redirectPath, { replace: true });
           } else {
-            navigate(from || "/", { replace: true });
+            const redirectPath = from.startsWith("/admin") ? "/" : from || "/";
+            navigate(redirectPath, { replace: true });
           }
         } else {
           alert("Không nhận được Token từ Server");
