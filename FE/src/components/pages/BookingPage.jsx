@@ -145,7 +145,7 @@ const BookingPage = () => {
         return;
       }
       const response = await fetch(
-        `/api/pet/user/${currentUserId}`,
+        `http://localhost:8080/api/pet/user/${currentUserId}`,
         {
           method: "GET",
           headers: {
@@ -590,9 +590,9 @@ const BookingPage = () => {
   const voucherDiscountPreview =
     isOnlinePayment && paymentCategory === "online"
       ? Math.min(
-          Number(selectedVoucher?.remainingAmount || 0),
-          Number(bookingResult?.totalPrice || 0),
-        )
+        Number(selectedVoucher?.remainingAmount || 0),
+        Number(bookingResult?.totalPrice || 0),
+      )
       : 0;
   const payablePreview = Math.max(
     0,
@@ -779,9 +779,8 @@ const BookingPage = () => {
                   {services.map((service) => (
                     <div
                       key={service.id}
-                      className={`service-card${
-                        isServiceSelected(service.id) ? " selected" : ""
-                      }`}
+                      className={`service-card${isServiceSelected(service.id) ? " selected" : ""
+                        }`}
                       onClick={() => toggleServiceSelection(service)}
                     >
                       <span className="service-check">
@@ -892,11 +891,10 @@ const BookingPage = () => {
                         <button
                           key={index}
                           type="button"
-                          className={`slot-btn${
-                            selectedSlot?.startAt === slot.startAt
+                          className={`slot-btn${selectedSlot?.startAt === slot.startAt
                               ? " active"
                               : ""
-                          }`}
+                            }`}
                           onClick={() => setSelectedSlot(slot)}
                         >
                           {formatTime(slot.startAt)}
@@ -946,9 +944,8 @@ const BookingPage = () => {
               <div className="d-flex flex-column gap-3">
                 {/* Option: Store */}
                 <div
-                  className={`payment-option${
-                    paymentCategory === "store" ? " active" : ""
-                  }`}
+                  className={`payment-option${paymentCategory === "store" ? " active" : ""
+                    }`}
                   onClick={() => {
                     setPaymentCategory("store");
                     setPaymentMethod("PAY_LATER");
@@ -971,16 +968,15 @@ const BookingPage = () => {
                       type="radio"
                       className="form-check-input"
                       checked={paymentCategory === "store"}
-                      onChange={() => {}}
+                      onChange={() => { }}
                     />
                   </div>
                 </div>
 
                 {/* Option: Online */}
                 <div
-                  className={`payment-option${
-                    paymentCategory === "online" ? " active" : ""
-                  }`}
+                  className={`payment-option${paymentCategory === "online" ? " active" : ""
+                    }`}
                   onClick={() => {
                     setPaymentCategory("online");
                     setPaymentMethod("MOMO_PREPAID");
@@ -1003,7 +999,7 @@ const BookingPage = () => {
                       type="radio"
                       className="form-check-input"
                       checked={paymentCategory === "online"}
-                      onChange={() => {}}
+                      onChange={() => { }}
                     />
                   </div>
                 </div>
@@ -1014,9 +1010,8 @@ const BookingPage = () => {
                     <div className="online-methods">
                       {/* MoMo */}
                       <div
-                        className={`online-method-card${
-                          paymentMethod === "MOMO_PREPAID" ? " active" : ""
-                        }`}
+                        className={`online-method-card${paymentMethod === "MOMO_PREPAID" ? " active" : ""
+                          }`}
                         onClick={() => setPaymentMethod("MOMO_PREPAID")}
                       >
                         <div
@@ -1031,9 +1026,8 @@ const BookingPage = () => {
 
                       {/* VNPay */}
                       <div
-                        className={`online-method-card${
-                          paymentMethod === "VNPAY_PREPAID" ? " active" : ""
-                        }`}
+                        className={`online-method-card${paymentMethod === "VNPAY_PREPAID" ? " active" : ""
+                          }`}
                         onClick={() => setPaymentMethod("VNPAY_PREPAID")}
                       >
                         <div
@@ -1111,8 +1105,8 @@ const BookingPage = () => {
               </div>
 
               {selectedServices.length === 0 &&
-              !selectedPetInfo &&
-              !selectedSlot ? (
+                !selectedPetInfo &&
+                !selectedSlot ? (
                 <div className="summary-empty">
                   <i className="fas fa-clipboard-list"></i>
                   <p>Chọn dịch vụ và thời gian để xem tóm tắt lịch hẹn</p>
