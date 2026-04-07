@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import { getRoleFromToken } from "../../utils/jwtHelper";
 import { jwtDecode } from "jwt-decode";
-
+import { GoogleLogin } from '@react-oauth/google';
 function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,7 +62,24 @@ function LoginPage() {
     }
     setLoading(false);
   };
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    try {
+      // Gửi Google Token (credential) xuống Backend của bạn
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token: credentialResponse.credential }),
+      });
 
+      await handleLoginSuccess(res);
+    } catch (error) {
+      console.error("Lỗi Google Login:", error);
+      alert("Không thể kết nối tới Server");
+      setLoading(false);
+    }
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -126,7 +143,22 @@ function LoginPage() {
             )}
           </button>
         </form>
+<div className="position-relative my-4">
+          <hr />
+          <span className="position-absolute top-50 start-50 translate-middle bg-white px-2 text-muted small">
+            hoặc đăng nhập bằng
+          </span>
+        </div>
 
+        <div className="d-flex justify-content-center mb-3">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => console.log("Google Login Failed")}
+            useOneTap
+            theme="outline"
+            width="300"
+          />
+        </div>
         <div className="text-center">
           <span className="text-muted">Chưa có tài khoản? </span>
           <Link to="/register" className="text-decoration-none fw-bold">

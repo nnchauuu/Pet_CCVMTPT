@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import { jwtDecode } from "jwt-decode"; 
-
+import { GoogleLogin } from '@react-oauth/google';
 function RegisterPage() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -112,7 +112,24 @@ function RegisterPage() {
             setLoading(false);
         }
     };
+const handleGoogleSuccess = async (credentialResponse) => {
+        setLoading(true);
+        try {
+            const res = await fetch("/api/auth/google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include", 
+                // ĐÃ FIX: Gửi Object có chứa key "token"
+                body: JSON.stringify({ token: credentialResponse.credential }), 
+            });
 
+            await handleLoginSuccess(res);
+        } catch (error) {
+            console.error("Lỗi Google Auth:", error);
+            alert("Không thể kết nối tới Server");
+            setLoading(false);
+        }
+    };
     return (
         <div className="container mt-5" style={{ maxWidth: 400 }}>
             <div className="card p-4 shadow border-0">
@@ -185,7 +202,27 @@ function RegisterPage() {
                         {loading ? "Đang xử lý..." : "ĐĂNG KÝ"}
                     </button>
                 </form>
+<div className="position-relative my-4">
+                    <hr />
+                    <span className="position-absolute top-50 start-50 translate-middle bg-white px-2 text-muted small">
+                        hoặc đăng ký bằng
+                    </span>
+                </div>
 
+                <div className="d-flex justify-content-center mb-3">
+                    <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => console.log('Google Failed')}
+                        useOneTap
+                        theme="outline"
+                        width="300"
+                    />
+                </div>
+
+                <div className="text-center">
+                    <span className="text-muted">Đã có tài khoản? </span>
+                    <Link to="/login" className="text-decoration-none fw-bold">Đăng nhập ngay</Link>
+                </div>
                 <div className="text-center">
                     <span className="text-muted">Đã có tài khoản? </span>
                     <Link to="/login" className="text-decoration-none fw-bold">Đăng nhập ngay</Link>
