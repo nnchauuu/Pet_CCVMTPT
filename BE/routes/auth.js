@@ -4,7 +4,9 @@ let userController = require('../controllers/users')
 let { RegisterValidator, validatedResult, ChangePasswordValidator } = require('../utils/validator')
 let { CheckLogin } = require('../utils/authHandler')
 let crypto = require('crypto')
+let { sendMail } = require('../utils/sendMail')
 let mongoose = require('mongoose')
+const { agenda } = require('../utils/backgroundHandler');
 router.post('/register', RegisterValidator, validatedResult, async function (req, res, next) {
     let session = await mongoose.startSession();
     let transaction = session.startTransaction()
@@ -15,6 +17,10 @@ router.post('/register', RegisterValidator, validatedResult, async function (req
         )
         await session.commitTransaction()
         await session.endSession()
+        await agenda.now('sendWelcomeEmailJob', {
+            email: newUser.email,
+            name: newUser.username
+        });
         res.send(newUser)
     } catch (error) {
         await session.abortTransaction()

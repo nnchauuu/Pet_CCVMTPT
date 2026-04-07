@@ -7,6 +7,7 @@ let mongoose = require('mongoose')
 let cors = require('cors');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+let { agenda, startBackgroundJobs } = require('./utils/backgroundHandler');
 var app = express();
 app.use(cors({
     origin: 'https://localhost:5173',
@@ -30,6 +31,7 @@ app.use('/api/auth', require('./routes/auth'));
 mongoose.connect('mongodb://localhost:27017/NNPTUD-C3');
 mongoose.connection.on('connected',()=>{
   console.log("connected");
+  startBackgroundJobs();
 })
 
 mongoose.connection.on('disconnected',()=>{
