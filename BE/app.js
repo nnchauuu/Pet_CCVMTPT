@@ -28,6 +28,10 @@ app.use('/', indexRouter);
 app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/roles', require('./routes/roles'));
 app.use('/api/auth', require('./routes/auth'));
+app.use("/api/v1/services", require("./routes/services"));
+app.use("/api/v1/pet-types", require("./routes/petTypes"));
+app.use("/api/v1/bookings", require("./routes/bookings"));
+app.use("/api/v1/pets", require("./routes/pets"));
 mongoose.connect('mongodb://localhost:27017/NNPTUD-C3');
 mongoose.connection.on('connected',()=>{
   console.log("connected");

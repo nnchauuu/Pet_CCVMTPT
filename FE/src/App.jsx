@@ -9,7 +9,7 @@ import LoginPage from './components/pages/LoginPage';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import AdminLayout from './components/layouts/AdminLayout';
 import AdminDashboard from './components/pages/admin/AdminDashboard';
-
+import BookingManagement from './components/pages/admin/BookingManagement';
 function About() {
   return <h1>About Page</h1>;
 }
@@ -40,6 +40,7 @@ function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
+            <Route path="bookings" element={<BookingManagement />} />
           </Route>
         </Routes>
       </BrowserRouter>
