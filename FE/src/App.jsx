@@ -28,6 +28,7 @@ function MainLayout({ children }) {
   );
 =======
 import BookingManagement from './components/pages/admin/BookingManagement';
+import UserManagement from './components/pages/admin/UserManagement';
 function About() {
   return <h1>About Page</h1>;
 >>>>>>> dev
@@ -128,6 +129,7 @@ function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="bookings" element={<BookingManagement />} />
+            <Route path="users" element={<UserManagement />} />
           </Route>
           <Route
             path="*"

@@ -54,4 +54,24 @@ router.post("/", CreateAnUserValidator, validatedResult, async function (req, re
     res.status(400).send({ message: err.message });
   }
 });
+router.put("/:id/role", CheckLogin, checkRole("ADMIN"), async function (req, res) {
+    try {
+        let userId = req.params.id;
+        let newRoleId = req.body.roleId;
+        if (!newRoleId) {
+            return res.status(400).send({ success: false, message: "Thiếu role mới" });
+        }
+        let updatedUser = await userController.ChangeRole(userId, newRoleId);
+        if (!updatedUser) {
+            return res.status(404).send({ success: false, message: "Lỗi cập nhật" });
+        }
+        res.send({ 
+            success: true,
+            message: "Cập nhật quyền thành công", 
+            data: updatedUser 
+        });
+    } catch (err) {
+        res.status(400).send({ success: false, message: err.message });
+    }
+});
 module.exports = router;
