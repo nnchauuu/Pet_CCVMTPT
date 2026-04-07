@@ -6,7 +6,27 @@ let { validatedResult, CreateAnUserValidator, ModifyAnUserValidator } = require(
 let userController = require('../controllers/users')
 let { CheckLogin, checkRole } = require('../utils/authHandler')
 
-
+router.get("/search", async function (req, res) {
+    try {
+        const keyword = req.query.email || req.query.q || "";
+        let user = await userController.GetUserByEmail(keyword);
+        if (!user) {
+            const userModel = require("../schemas/users");
+            const users = await userModel.find({
+                isDeleted: false,
+                $or: [
+                    { email: { $regex: keyword, $options: "i" } },
+                    { username: { $regex: keyword, $options: "i" } }
+                ]
+            }).limit(5);
+            if (users.length === 0) return res.status(404).send({ success: false, message: "Không tìm thấy khách hàng" });
+            return res.send({ success: true, data: users.map(u => ({ id: u._id.toString(), username: u.username, email: u.email })) });
+        }
+        res.send({ success: true, data: { id: user._id.toString(), username: user.username, email: user.email } });
+    } catch (err) {
+        res.status(400).send({ success: false, message: err.message });
+    }
+});
 router.get("/", CheckLogin, checkRole("ADMIN"), async function (req, res, next) {//ADMIN
   let users = await userController.GetAllUser()
   res.send(users);
@@ -34,5 +54,4 @@ router.post("/", CreateAnUserValidator, validatedResult, async function (req, re
     res.status(400).send({ message: err.message });
   }
 });
-
 module.exports = router;
