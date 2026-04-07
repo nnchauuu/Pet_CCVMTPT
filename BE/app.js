@@ -1,3 +1,4 @@
+require('dotenv').config();
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -23,10 +24,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/', indexRouter);
 app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/roles', require('./routes/roles'));
+app.use('/api/v1/services', require('./routes/services'));
+app.use('/api/v1/upload', require('./routes/upload'));
+app.use('/api/pet-type', require('./routes/petTypes'));
+app.use('/api/pet', require('./routes/pets'));
+app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/payments', require('./routes/payments'));
 app.use('/api/auth', require('./routes/auth'));
 app.use("/api/v1/services", require("./routes/services"));
 app.use("/api/v1/pet-types", require("./routes/petTypes"));
