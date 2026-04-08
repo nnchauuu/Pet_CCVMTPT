@@ -30,8 +30,29 @@ agenda.define('sendWelcomeEmailJob', async (job) => {
         console.log("Lỗi welcome mail:", error.message);
     }
 });
+agenda.define('triggerNoShowEndOfDay', async (job) => {
+    try {
+        const now = new Date();
+        let result = await bookingModel.updateMany(
+            { 
+                bookingStatus: 'CONFIRMED', 
+                scheduledAt: { $lt: now },
+                isDeleted: false 
+            },
+            { 
+                $set: { bookingStatus: 'NO_SHOW' } 
+            }
+        );
+        if (result.modifiedCount > 0) {
+            console.log(`[Hệ thống] Kết thúc ngày: Đã chuyển ${result.modifiedCount} lịch không đến thành NO_SHOW.`);
+        }
+    } catch (error) {
+        console.log("Lỗi chốt NO_SHOW cuối ngày:", error.message);
+    }
+});
 const startBackgroundJobs = async () => {
     await agenda.start();
+    await agenda.every('59 23 * * *', 'triggerNoShowEndOfDay', null, { timezone: 'Asia/Ho_Chi_Minh' });
     console.log('Background Jobs (Agenda) started');
 };
 

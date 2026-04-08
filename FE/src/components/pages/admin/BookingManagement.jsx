@@ -287,7 +287,7 @@ const BookingManagement = () => {
     const fetchUserPets = async (userId) => {
         try {
             setLoadingPets(true); 
-            const response = await fetch(`${BACKEND_URL}/pets/user/${userId}`, { headers: getAuthHeaders() });
+            const response = await fetch(`${BACKEND_URL}/pets/userPets/${userId}`, { headers: getAuthHeaders() });
             const result = await response.json();
             if (response.ok) setPets(result.data || result);
         } catch (err) { } finally { setLoadingPets(false); }
@@ -372,9 +372,9 @@ const BookingManagement = () => {
         
         let userId = selectedBooking.user?._id || selectedBooking.user?.id;
         setFoundUser({ id: userId, username: selectedBooking.user?.username });
-        
+        console.log("Selected Booking User ID:", userId);
         try {
-            const petsRes = await fetch(`${BACKEND_URL}/pets/user/${userId}`, { headers: getAuthHeaders() });
+            const petsRes = await fetch(`${BACKEND_URL}/pets/userPets/${userId}`, { headers: getAuthHeaders() });
             const petsData = await petsRes.json();
             const allPets = petsData.data || petsData;
             setPets(allPets);
