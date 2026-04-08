@@ -149,6 +149,17 @@ const AdminLayout = () => {
                   Quản lý Dịch vụ
                 </NavLink>
                 <NavLink
+                  to="/admin/staff"
+                  className={({ isActive }) =>
+                    `nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  <div className="sb-nav-link-icon">
+                    <i className="fas fa-users"></i>
+                  </div>
+                  Quản lý Nhân viên
+                </NavLink>
+                <NavLink
                   to="/admin/users"
                   className={({ isActive }) =>
                     `nav-link ${isActive ? "active" : ""}`
@@ -161,9 +172,13 @@ const AdminLayout = () => {
                 </NavLink>
                 <NavLink
                   to="/admin/pet-types"
-                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                  className={({ isActive }) =>
+                    `nav-link ${isActive ? "active" : ""}`
+                  }
                 >
-                  <div className="sb-nav-link-icon"><i className="fas fa-paw"></i></div>
+                  <div className="sb-nav-link-icon">
+                    <i className="fas fa-paw"></i>
+                  </div>
                   Quản lý Loại thú cưng
                 </NavLink>
               </div>
