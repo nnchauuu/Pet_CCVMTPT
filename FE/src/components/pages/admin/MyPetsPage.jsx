@@ -1,0 +1,1100 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../AuthContext";
+
+const API_HOST = "http://localhost:8080";
+const API_BASE = `${API_HOST}/api`;
+
+function resolveImageUrl(imageUrl) {
+    if (!imageUrl) return "";
+    if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+    return imageUrl.startsWith("/") ? `${API_HOST}${imageUrl}` : `${API_HOST}/${imageUrl}`;
+}
+
+const emptyForm = {
+    name: "",
+    age: "",
+    petTypeId: "",
+    imageUrl: "",
+    ownerId: "",
+    ownerUsername: "",
+};
+
+async function uploadImage(file) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`${API_HOST}/api/v1/upload/one_image`, { method: "POST", body: fd });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json.filename) throw new Error(json.message || "Lỗi upload ảnh");
+    return `${API_HOST}/uploads/${json.filename}`;
+}
+
+const MyPetsPage = () => {
+    const { user, isAdmin: checkIsAdmin } = useAuth();
+    const currentUserId = useMemo(() => user?.userId ?? user?.id ?? null, [user]);
+    const authToken = useMemo(
+        () => user?.token || JSON.parse(localStorage.getItem("user") || "null")?.token,
+        [user],
+    );
+
+    const [pets, setPets] = useState([]);
+    const [petTypes, setPetTypes] = useState([]);
+
+    const [loadingPets, setLoadingPets] = useState(false);
+    const [loadingPetTypes, setLoadingPetTypes] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [detailPet, setDetailPet] = useState(null);
+    const [careHistory, setCareHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    const [createForm, setCreateForm] = useState(emptyForm);
+    const [editForm, setEditForm] = useState(emptyForm);
+    const [editingPetId, setEditingPetId] = useState(null);
+    const [imageFile, setImageFile] = useState(null);
+    const [searchingUser, setSearchingUser] = useState(false);
+    const [userSuggestions, setUserSuggestions] = useState([]);
+
+    // Pagination / Search / Sort
+    const [pageNumber, setPageNumber] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [searchInput, setSearchInput] = useState("");
+    const [search, setSearch] = useState("");
+    const [sortBy, setSortBy] = useState("name");
+    const [sortDir, setSortDir] = useState("asc");
+
+    const clearNotice = () => {
+        setError("");
+        setSuccess("");
+    };
+
+    const isAdmin = checkIsAdmin();
+
+    const fetchPets = async () => {
+        if (!currentUserId || !authToken) {
+            setError("Vui lòng đăng nhập để xem thú cưng.");
+            setPets([]);
+            return;
+        }
+
+        try {
+            setLoadingPets(true);
+            clearNotice();
+
+            const url = isAdmin ? `${API_BASE}/pet/all` : `${API_BASE}/pet/user/${currentUserId}`;
+            const response = await fetch(url, {
+                method: "GET",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || "Không thể tải danh sách thú cưng.");
+            }
+
+            setPets(result.data || []);
+        } catch (err) {
+            setError(err.message || "Có lỗi xảy ra khi tải dữ liệu.");
+            setPets([]);
+        } finally {
+            setLoadingPets(false);
+        }
+    };
+
+    const fetchPetTypes = async () => {
+        try {
+            setLoadingPetTypes(true);
+            const response = await fetch(`${API_BASE}/pet-type`, {
+                method: "GET",
+                credentials: "include",
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || "Không thể tải loại thú cưng.");
+            }
+
+            const normalized = (result.data || []).map((t) => ({
+                ...t,
+                id: t.id || t._id?.toString() || "",
+            }));
+            setPetTypes(normalized);
+        } catch (err) {
+            setError(err.message || "Không thể tải loại thú cưng.");
+        } finally {
+            setLoadingPetTypes(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPets();
+        fetchPetTypes();
+    }, [currentUserId]);
+
+    const fetchUserSuggestions = async (keyword, form, setForm) => {
+        if (!keyword.trim()) { setUserSuggestions([]); return; }
+        try {
+            setSearchingUser(true);
+            const res = await fetch(`http://localhost:8080/api/v1/users/search?email=${encodeURIComponent(keyword)}`, {
+                headers: { Authorization: `Bearer ${authToken}` },
+            });
+            const result = await res.json().catch(() => null);
+            if (res.ok && result?.success && result?.data) {
+                const list = Array.isArray(result.data) ? result.data : [result.data];
+                setUserSuggestions(list);
+            } else {
+                setUserSuggestions([]);
+            }
+        } catch {
+            setUserSuggestions([]);
+        } finally {
+            setSearchingUser(false);
+        }
+    };
+
+    const selectUser = (u, form, setForm) => {
+        setForm((prev) => ({ ...prev, ownerId: u.id, ownerUsername: u.email || u.username }));
+        setUserSuggestions([]);
+    };
+
+    const searchUser = async (username, form, setForm) => {
+        await fetchUserSuggestions(username, form, setForm);
+    };
+
+    const openCreateModal = () => {
+        clearNotice();
+        setCreateForm(emptyForm);
+        setImageFile(null);
+        setShowCreateModal(true);
+    };
+
+    const openEditModal = (pet) => {
+        clearNotice();
+        setEditingPetId(pet.id);
+        setEditForm({
+            name: pet.name ?? "",
+            age: String(pet.age ?? ""),
+            petTypeId: String(pet.petTypeId ?? ""),
+            imageUrl: pet.imageUrl ?? "",
+            ownerId: pet.ownerId ?? "",
+            ownerUsername: pet.ownerEmail || pet.ownerName || "",
+        });
+        setImageFile(null);
+        setUserSuggestions([]);
+        setShowEditModal(true);
+    };
+
+    const closeCreateModal = () => {
+        setShowCreateModal(false);
+        setCreateForm(emptyForm);
+        setImageFile(null);
+        setUserSuggestions([]);
+    };
+
+    const closeEditModal = () => {
+        setShowEditModal(false);
+        setEditingPetId(null);
+        setEditForm(emptyForm);
+        setImageFile(null);
+        setUserSuggestions([]);
+    };
+
+    const validateForm = (form) => {
+        if (!form.name.trim()) return "Tên thú cưng là bắt buộc.";
+        if (form.age === "" || Number(form.age) < 0) return "Tuổi không hợp lệ.";
+        if (!form.petTypeId) return "Vui lòng chọn loại thú cưng.";
+        return "";
+    };
+
+    const handleCreatePet = async (e) => {
+        e.preventDefault();
+        clearNotice();
+
+        const msg = validateForm(createForm);
+        if (msg) { setError(msg); return; }
+
+        const targetUserId = createForm.ownerId || currentUserId;
+        if (isAdmin && !createForm.ownerId) { setError("Vui lòng chọn và xác nhận chủ sở hữu."); return; }
+        if (!targetUserId) { setError("Vui lòng chọn chủ sở hữu."); return; }
+
+        try {
+            setSubmitting(true);
+            let imageUrl = createForm.imageUrl?.trim() || null;
+            if (imageFile) imageUrl = await uploadImage(imageFile);
+
+            const response = await fetch(`${API_BASE}/pet/user/${targetUserId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+                body: JSON.stringify({ name: createForm.name.trim(), age: Number(createForm.age), petTypeId: createForm.petTypeId, imageUrl }),
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) throw new Error(result?.message || "Thêm thú cưng thất bại.");
+
+            setSuccess("Thêm thú cưng thành công.");
+            closeCreateModal();
+            await fetchPets();
+        } catch (err) {
+            setError(err.message || "Thêm thú cưng thất bại.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleUpdatePet = async (e) => {
+        e.preventDefault();
+        clearNotice();
+
+        const msg = validateForm(editForm);
+        if (msg) { setError(msg); return; }
+        if (!editingPetId) { setError("Không tìm thấy thú cưng cần sửa."); return; }
+
+        try {
+            setSubmitting(true);
+            let imageUrl = editForm.imageUrl?.trim() || null;
+            if (imageFile) imageUrl = await uploadImage(imageFile);
+
+            const ownerUserId = isAdmin ? (editForm.ownerId || currentUserId) : currentUserId;
+            const response = await fetch(`${API_BASE}/pet/user/${ownerUserId}/${editingPetId}`, {
+                method: "PUT",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${authToken}`,
+                },
+                body: JSON.stringify({ name: editForm.name.trim(), age: Number(editForm.age), petTypeId: editForm.petTypeId, imageUrl, ownerId: editForm.ownerId || undefined }),
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) throw new Error(result?.message || "Cập nhật thú cưng thất bại.");
+
+            setSuccess("Cập nhật thú cưng thành công.");
+            closeEditModal();
+            await fetchPets();
+        } catch (err) {
+            setError(err.message || "Cập nhật thú cưng thất bại.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeletePet = async (pet) => {
+        clearNotice();
+
+        const ok = window.confirm("Bạn có chắc muốn xóa thú cưng này?");
+        if (!ok) return;
+
+        const userId = isAdmin ? (pet.ownerId || currentUserId) : currentUserId;
+        const petId = pet.id;
+
+        try {
+            setSubmitting(true);
+
+            const response = await fetch(
+                `${API_BASE}/pet/user/${userId}/${petId}`,
+                {
+                    method: "DELETE",
+                    credentials: "include",
+                    headers: { Authorization: `Bearer ${authToken}` },
+                },
+            );
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || "Xóa thú cưng thất bại.");
+            }
+
+            setSuccess("Xóa thú cưng thành công.");
+            await fetchPets();
+        } catch (err) {
+            setError(err.message || "Xóa thú cưng thất bại.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const fetchCareHistory = async (petId) => {
+        try {
+            setLoadingHistory(true);
+            setCareHistory([]);
+            let url, headers;
+            if (isAdmin) {
+                url = `${API_BASE}/bookings`;
+                headers = { Authorization: `Bearer ${authToken}` };
+            } else {
+                url = `${API_BASE}/bookings/me?petId=${petId}`;
+                headers = { Authorization: `Bearer ${authToken}` };
+            }
+            const res = await fetch(url, { headers });
+            const json = await res.json().catch(() => null);
+            let list = [];
+            if (isAdmin) {
+                list = Array.isArray(json) ? json : (json?.data || []);
+                list = list.filter((b) => {
+                    const bPetId = b.petId || b.pet?._id || b.pet?.id || String(b.pet || "");
+                    return String(bPetId) === String(petId);
+                });
+            } else {
+                list = json?.data || [];
+            }
+            setCareHistory(list);
+        } catch {
+            setCareHistory([]);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    const openDetailModal = (pet) => {
+        setDetailPet(pet);
+        setShowDetailModal(true);
+        fetchCareHistory(pet.id);
+    };
+
+    const closeDetailModal = () => {
+        setShowDetailModal(false);
+        setDetailPet(null);
+        setCareHistory([]);
+    };
+
+    const renderFormFields = (form, setForm) => (
+        <>
+            <div className="mb-3">
+                <label className="form-label fw-bold">
+                    Tên thú cưng <span className="text-danger">*</span>
+                </label>
+                <input
+                    type="text"
+                    className="form-control"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                />
+            </div>
+
+            <div className="mb-3">
+                <label className="form-label fw-bold">
+                    Tuổi <span className="text-danger">*</span>
+                </label>
+                <input
+                    type="number"
+                    min="0"
+                    className="form-control"
+                    value={form.age}
+                    onChange={(e) => setForm({ ...form, age: e.target.value })}
+                    required
+                />
+            </div>
+
+            <div className="mb-3">
+                <label className="form-label fw-bold">
+                    Loại thú cưng <span className="text-danger">*</span>
+                </label>
+                <select
+                    className="form-select"
+                    value={form.petTypeId}
+                    onChange={(e) => setForm({ ...form, petTypeId: e.target.value })}
+                    required
+                >
+                    <option value="">-- Chọn loại thú cưng --</option>
+                    {petTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                            {type.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="mb-3">
+                <label className="form-label fw-bold">Ảnh</label>
+                <input
+                    type="file"
+                    className="form-control"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files[0] || null)}
+                />
+                {(imageFile ? URL.createObjectURL(imageFile) : resolveImageUrl(form.imageUrl)) && (
+                    <img
+                        src={imageFile ? URL.createObjectURL(imageFile) : resolveImageUrl(form.imageUrl)}
+                        alt="preview"
+                        className="mt-2 rounded"
+                        style={{ width: 80, height: 80, objectFit: "cover" }}
+                    />
+                )}
+            </div>
+        </>
+    );
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        setSearch(searchInput.trim());
+        setPageNumber(1);
+    };
+
+    const handleClearSearch = () => {
+        setSearch("");
+        setSearchInput("");
+        setPageNumber(1);
+    };
+
+    const handleSort = (column) => {
+        if (sortBy === column) {
+            setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+        } else {
+            setSortBy(column);
+            setSortDir("asc");
+        }
+        setPageNumber(1);
+    };
+
+    const filteredAndSortedPets = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        const filtered = pets.filter((pet) => {
+            const type = petTypes.find((t) => String(t.id) === String(pet.petTypeId));
+            const typeName = type?.name || "";
+            return (
+                (pet.name || "").toLowerCase().includes(keyword) ||
+                String(pet.age ?? "").includes(keyword) ||
+                typeName.toLowerCase().includes(keyword)
+            );
+        });
+
+        const sorted = [...filtered].sort((a, b) => {
+            if (sortBy === "name") {
+                return sortDir === "asc"
+                    ? (a.name || "").localeCompare(b.name || "", "vi")
+                    : (b.name || "").localeCompare(a.name || "", "vi");
+            }
+
+            if (sortBy === "age") {
+                return sortDir === "asc"
+                    ? Number(a.age || 0) - Number(b.age || 0)
+                    : Number(b.age || 0) - Number(a.age || 0);
+            }
+
+            if (sortBy === "petType") {
+                const aType = petTypes.find((t) => String(t.id) === String(a.petTypeId))?.name || "";
+                const bType = petTypes.find((t) => String(t.id) === String(b.petTypeId))?.name || "";
+                return sortDir === "asc"
+                    ? aType.localeCompare(bType, "vi")
+                    : bType.localeCompare(aType, "vi");
+            }
+
+            return 0;
+        });
+
+        return sorted;
+    }, [pets, petTypes, search, sortBy, sortDir]);
+
+    const totalCount = filteredAndSortedPets.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+    const pagedPets = useMemo(() => {
+        const start = (pageNumber - 1) * pageSize;
+        return filteredAndSortedPets.slice(start, start + pageSize);
+    }, [filteredAndSortedPets, pageNumber, pageSize]);
+
+    const startRecord = totalCount === 0 ? 0 : (pageNumber - 1) * pageSize + 1;
+    const endRecord = Math.min(pageNumber * pageSize, totalCount);
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) setPageNumber(newPage);
+    };
+
+    useEffect(() => {
+        const newTotalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        if (pageNumber > newTotalPages) setPageNumber(newTotalPages);
+    }, [totalCount, pageSize, pageNumber]);
+
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxPagesToShow = 5;
+
+        if (totalPages <= maxPagesToShow) {
+            for (let i = 1; i <= totalPages; i += 1) pages.push(i);
+            return pages;
+        }
+
+        if (pageNumber <= 3) {
+            pages.push(1, 2, 3, 4, "...", totalPages);
+            return pages;
+        }
+
+        if (pageNumber >= totalPages - 2) {
+            pages.push(
+                1,
+                "...",
+                totalPages - 3,
+                totalPages - 2,
+                totalPages - 1,
+                totalPages,
+            );
+            return pages;
+        }
+
+        pages.push(
+            1,
+            "...",
+            pageNumber - 1,
+            pageNumber,
+            pageNumber + 1,
+            "...",
+            totalPages,
+        );
+        return pages;
+    };
+
+    return (
+        <div className="container-fluid px-4">
+            <h1 className="mt-4">Quản lý thú cưng</h1>
+            <ol className="breadcrumb mb-4">
+                <li className="breadcrumb-item">
+                    <a href="/admin">Dashboard</a>
+                </li>
+                <li className="breadcrumb-item active">Thú cưng</li>
+            </ol>
+
+            <button className="btn btn-primary btn-sm mb-3" onClick={openCreateModal}>
+                <i className="fas fa-plus me-2"></i>Thêm mới
+            </button>
+
+            {error && <div className="alert alert-danger">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
+
+            <div className="card mb-4">
+                <div className="card-header">
+                    <i className="fas fa-paw me-1"></i>Danh sách thú cưng
+                </div>
+
+                <div className="card-body">
+                    <div className="row mb-3">
+                        <div className="col-md-3">
+                            <select
+                                className="form-select"
+                                value={pageSize}
+                                onChange={(e) => {
+                                    setPageSize(Number(e.target.value));
+                                    setPageNumber(1);
+                                }}
+                            >
+                                <option value={5}>5 dòng/trang</option>
+                                <option value={10}>10 dòng/trang</option>
+                                <option value={25}>25 dòng/trang</option>
+                                <option value={50}>50 dòng/trang</option>
+                            </select>
+                        </div>
+
+                        <div className="col-md-9">
+                            <form onSubmit={handleSearch} className="d-flex">
+                                <input
+                                    type="text"
+                                    className="form-control me-2"
+                                    placeholder="Tìm kiếm theo tên, tuổi, loại thú cưng..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                />
+                                <button type="submit" className="btn btn-primary me-2">
+                                    <i className="fas fa-search"></i>
+                                </button>
+                                {search && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={handleClearSearch}
+                                    >
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                )}
+                            </form>
+                        </div>
+                    </div>
+
+                    {loadingPets ? (
+                        <div className="text-center py-5">
+                            <div className="spinner-border" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <table className="table table-bordered table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: "80px" }}>Ảnh</th>
+
+                                        <th onClick={() => handleSort("name")} style={{ cursor: "pointer" }}>
+                                            Tên thú cưng{" "}
+                                            {sortBy === "name" && (
+                                                <i
+                                                    className={`fas fa-sort-${sortDir === "asc" ? "up" : "down"} ms-1`}
+                                                ></i>
+                                            )}
+                                        </th>
+
+                                        <th onClick={() => handleSort("age")} style={{ cursor: "pointer" }}>
+                                            Tuổi{" "}
+                                            {sortBy === "age" && (
+                                                <i
+                                                    className={`fas fa-sort-${sortDir === "asc" ? "up" : "down"} ms-1`}
+                                                ></i>
+                                            )}
+                                        </th>
+
+                                        <th onClick={() => handleSort("petType")} style={{ cursor: "pointer" }}>
+                                            Loại thú cưng{" "}
+                                            {sortBy === "petType" && (
+                                                <i
+                                                    className={`fas fa-sort-${sortDir === "asc" ? "up" : "down"} ms-1`}
+                                                ></i>
+                                            )}
+                                        </th>
+
+                                        {isAdmin && <th>Chủ sở hữu</th>}
+
+                                        <th style={{ width: "240px" }}>Thao tác</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {pagedPets.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={isAdmin ? "6" : "5"} className="text-center py-4">
+                                                {search ? "Không tìm thấy kết quả" : "Chưa có dữ liệu"}
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        pagedPets.map((pet) => {
+                                            const type = petTypes.find((t) => String(t.id) === String(pet.petTypeId));
+                                            return (
+                                                <tr key={pet.id}>
+                                                    <td className="text-center">
+                                                        {pet.imageUrl ? (
+                                                            <img
+                                                                src={resolveImageUrl(pet.imageUrl)}
+                                                                alt={pet.name || "pet"}
+                                                                style={{
+                                                                    width: "50px",
+                                                                    height: "50px",
+                                                                    objectFit: "cover",
+                                                                    borderRadius: "50%",
+                                                                    border: "1px solid #ddd",
+                                                                }}
+                                                                onError={(e) => {
+                                                                    e.currentTarget.style.display = "none";
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white mx-auto"
+                                                                style={{ width: "50px", height: "50px" }}
+                                                            >
+                                                                <i className="fas fa-paw"></i>
+                                                            </div>
+                                                        )}
+                                                    </td>
+
+                                                    <td>{pet.name}</td>
+                                                    <td>{pet.age}</td>
+                                                    <td>{pet.petTypeName || petTypes.find((t) => String(t.id) === String(pet.petTypeId))?.name || `#${pet.petTypeId ?? "-"}`}</td>
+                                                    {isAdmin && <td>{pet.ownerName || pet.ownerEmail || "-"}</td>}
+
+                                                    <td>
+                                                        <button
+                                                            className="btn btn-info btn-sm me-1"
+                                                            onClick={() => openDetailModal(pet)}
+                                                            disabled={submitting}
+                                                            title="Xem chi tiết"
+                                                        >
+                                                            <i className="fas fa-eye"></i>
+                                                        </button>
+
+                                                        <button
+                                                            className="btn btn-warning btn-sm me-1"
+                                                            onClick={() => openEditModal(pet)}
+                                                            disabled={submitting}
+                                                            title="Chỉnh sửa"
+                                                        >
+                                                            <i className="fas fa-edit"></i>
+                                                        </button>
+
+                                                        <button
+                                                            className="btn btn-danger btn-sm"
+                                                            onClick={() => handleDeletePet(pet)}
+                                                            disabled={submitting}
+                                                            title="Xóa"
+                                                        >
+                                                            <i className="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+
+                            <div className="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                                <div className="mb-2 mb-md-0">
+                                    Hiển thị {startRecord} - {endRecord} của {totalCount} bản ghi
+                                </div>
+                                <nav>
+                                    <ul className="pagination mb-0">
+                                        <li className={`page-item ${pageNumber === 1 ? "disabled" : ""}`}>
+                                            <button
+                                                className="page-link"
+                                                onClick={() => handlePageChange(1)}
+                                                disabled={pageNumber === 1}
+                                            >
+                                                <i className="fas fa-angle-double-left"></i>
+                                            </button>
+                                        </li>
+
+                                        <li className={`page-item ${pageNumber === 1 ? "disabled" : ""}`}>
+                                            <button
+                                                className="page-link"
+                                                onClick={() => handlePageChange(pageNumber - 1)}
+                                                disabled={pageNumber === 1}
+                                            >
+                                                <i className="fas fa-chevron-left"></i>
+                                            </button>
+                                        </li>
+
+                                        {getPageNumbers().map((p, idx) =>
+                                            p === "..." ? (
+                                                <li key={`ellipsis-${idx}`} className="page-item disabled">
+                                                    <span className="page-link">...</span>
+                                                </li>
+                                            ) : (
+                                                <li
+                                                    key={p}
+                                                    className={`page-item ${pageNumber === p ? "active" : ""}`}
+                                                >
+                                                    <button className="page-link" onClick={() => handlePageChange(p)}>
+                                                        {p}
+                                                    </button>
+                                                </li>
+                                            ),
+                                        )}
+
+                                        <li
+                                            className={`page-item ${pageNumber === totalPages ? "disabled" : ""}`}
+                                        >
+                                            <button
+                                                className="page-link"
+                                                onClick={() => handlePageChange(pageNumber + 1)}
+                                                disabled={pageNumber === totalPages}
+                                            >
+                                                <i className="fas fa-chevron-right"></i>
+                                            </button>
+                                        </li>
+
+                                        <li
+                                            className={`page-item ${pageNumber === totalPages ? "disabled" : ""}`}
+                                        >
+                                            <button
+                                                className="page-link"
+                                                onClick={() => handlePageChange(totalPages)}
+                                                disabled={pageNumber === totalPages}
+                                            >
+                                                <i className="fas fa-angle-double-right"></i>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Create modal */}
+            {showCreateModal && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex="-1"
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                >
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <form onSubmit={handleCreatePet}>
+                                <div className="modal-header">
+                                    <h5 className="modal-title">Thêm thú cưng</h5>
+                                    <button type="button" className="btn-close" onClick={closeCreateModal} />
+                                </div>
+                                <div className="modal-body">
+                                    {loadingPetTypes ? (
+                                        <div className="text-center py-3">
+                                            <div className="spinner-border spinner-border-sm text-primary" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {isAdmin && (
+                                                <div className="mb-3">
+                                                    <label className="form-label fw-bold">Chủ sở hữu <span className="text-danger">*</span></label>
+                                                    <div className="input-group position-relative">
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Nhập email để tìm..."
+                                                            value={createForm.ownerUsername}
+                                                            onChange={(e) => {
+                                                                setCreateForm((p) => ({ ...p, ownerUsername: e.target.value, ownerId: "" }));
+                                                                fetchUserSuggestions(e.target.value, createForm, setCreateForm);
+                                                            }}
+                                                            autoComplete="off"
+                                                        />
+                                                        <button type="button" className="btn btn-outline-secondary" disabled={searchingUser}>
+                                                            {searchingUser ? <span className="spinner-border spinner-border-sm" /> : <i className="fas fa-search" />}
+                                                        </button>
+                                                        {userSuggestions.length > 0 && (
+                                                            <ul className="list-group position-absolute w-100 shadow" style={{ top: "100%", zIndex: 1000 }}>
+                                                                {userSuggestions.map((u) => (
+                                                                    <li key={u.id} className="list-group-item list-group-item-action" style={{ cursor: "pointer" }}
+                                                                        onMouseDown={() => {
+                                                                            setCreateForm((p) => ({ ...p, ownerId: String(u.id), ownerUsername: u.email || u.username }));
+                                                                            setUserSuggestions([]);
+                                                                        }}>
+                                                                        <strong>{u.username}</strong>{u.email && <span className="text-muted ms-2">{u.email}</span>}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        )}
+                                                    </div>
+                                                    {createForm.ownerId && <small className="text-success"><i className="fas fa-check-circle me-1" />Đã chọn người dùng</small>}
+                                                </div>
+                                            )}
+                                            {renderFormFields(createForm, setCreateForm)}
+                                        </>
+                                    )}
+                                </div>
+                                <div className="modal-footer">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={closeCreateModal}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button type="submit" className="btn btn-primary" disabled={submitting}>
+                                        {submitting ? "Đang lưu..." : "Lưu"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit modal */}
+            {showEditModal && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex="-1"
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                >
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <form onSubmit={handleUpdatePet}>
+                                <div className="modal-header">
+                                    <h5 className="modal-title">Sửa thú cưng</h5>
+                                    <button type="button" className="btn-close" onClick={closeEditModal} />
+                                </div>
+                                <div className="modal-body">
+                                    {loadingPetTypes ? (
+                                        <div className="text-center py-3">
+                                            <div className="spinner-border spinner-border-sm text-primary" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {isAdmin && (
+                                                <div className="mb-3">
+                                                    <label className="form-label fw-bold">Chủ sở hữu <span className="text-danger">*</span></label>
+                                                    <div className="input-group position-relative">
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Nhập email để tìm..."
+                                                            value={editForm.ownerUsername}
+                                                            onChange={(e) => {
+                                                                setEditForm((p) => ({ ...p, ownerUsername: e.target.value, ownerId: "" }));
+                                                                fetchUserSuggestions(e.target.value, editForm, setEditForm);
+                                                            }}
+                                                            autoComplete="off"
+                                                        />
+                                                        <button type="button" className="btn btn-outline-secondary" disabled={searchingUser}>
+                                                            {searchingUser ? <span className="spinner-border spinner-border-sm" /> : <i className="fas fa-search" />}
+                                                        </button>
+                                                        {userSuggestions.length > 0 && (
+                                                            <ul className="list-group position-absolute w-100 shadow" style={{ top: "100%", zIndex: 1000 }}>
+                                                                {userSuggestions.map((u) => (
+                                                                    <li key={u.id} className="list-group-item list-group-item-action" style={{ cursor: "pointer" }}
+                                                                        onMouseDown={() => { setEditForm((p) => ({ ...p, ownerId: String(u.id), ownerUsername: u.email || u.username })); setUserSuggestions([]); }}>
+                                                                        <strong>{u.username}</strong>{u.email && <span className="text-muted ms-2">{u.email}</span>}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        )}
+                                                    </div>
+                                                    {editForm.ownerId && <small className="text-success"><i className="fas fa-check-circle me-1" />Đã chọn người dùng</small>}
+                                                </div>
+                                            )}
+                                            {renderFormFields(editForm, setEditForm)}
+                                        </>
+                                    )}
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-secondary" onClick={closeEditModal}>
+                                        Hủy
+                                    </button>
+                                    <button type="submit" className="btn btn-warning" disabled={submitting}>
+                                        {submitting ? "Đang cập nhật..." : "Cập nhật"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Detail modal */}
+            {showDetailModal && detailPet && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex="-1"
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                    onClick={(e) => { if (e.target === e.currentTarget) closeDetailModal(); }}
+                >
+                    <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">
+                                    <i className="fas fa-paw me-2 text-primary"></i>
+                                    Chi tiết thú cưng
+                                </h5>
+                                <button type="button" className="btn-close" onClick={closeDetailModal} />
+                            </div>
+                            <div className="modal-body">
+                                {/* Thông tin cơ bản */}
+                                <div className="row mb-4 align-items-center">
+                                    <div className="col-auto">
+                                        {detailPet.imageUrl ? (
+                                            <img
+                                                src={resolveImageUrl(detailPet.imageUrl)}
+                                                alt={detailPet.name}
+                                                style={{ width: 90, height: 90, objectFit: "cover", borderRadius: "50%", border: "3px solid #dee2e6" }}
+                                                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                            />
+                                        ) : (
+                                            <div className="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white" style={{ width: 90, height: 90, fontSize: 32 }}>
+                                                <i className="fas fa-paw"></i>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="col">
+                                        <h4 className="mb-1">{detailPet.name}</h4>
+                                        <div className="text-muted mb-1">
+                                            <i className="fas fa-dog me-1"></i>
+                                            {detailPet.petTypeName || petTypes.find((t) => String(t.id) === String(detailPet.petTypeId))?.name || "—"}
+                                        </div>
+                                        <div className="text-muted mb-1">
+                                            <i className="fas fa-birthday-cake me-1"></i>
+                                            {detailPet.age} tuổi
+                                        </div>
+                                        {isAdmin && (
+                                            <div className="text-muted">
+                                                <i className="fas fa-user me-1"></i>
+                                                Chủ: <strong>{detailPet.ownerName || detailPet.ownerEmail || "—"}</strong>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <hr />
+
+                                {/* Lịch sử chăm sóc */}
+                                <h6 className="fw-bold mb-3">
+                                    <i className="fas fa-history me-2 text-secondary"></i>
+                                    Lịch sử chăm sóc
+                                </h6>
+
+                                {loadingHistory ? (
+                                    <div className="text-center py-3">
+                                        <div className="spinner-border spinner-border-sm text-primary" />
+                                        <span className="ms-2">Đang tải...</span>
+                                    </div>
+                                ) : careHistory.length === 0 ? (
+                                    <div className="text-center text-muted py-3">
+                                        <i className="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                                        Chưa có lịch sử chăm sóc
+                                    </div>
+                                ) : (
+                                    <div className="table-responsive">
+                                        <table className="table table-sm table-bordered table-hover align-middle">
+                                            <thead className="table-light">
+                                                <tr>
+                                                    <th>Mã lịch</th>
+                                                    <th>Ngày hẹn</th>
+                                                    <th>Dịch vụ</th>
+                                                    <th>Tổng tiền</th>
+                                                    <th>Trạng thái</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {careHistory.map((b) => {
+                                                    const statusMap = {
+                                                        0: { label: "Chờ xác nhận", cls: "warning" },
+                                                        1: { label: "Chờ thanh toán", cls: "info" },
+                                                        2: { label: "Đã xác nhận", cls: "primary" },
+                                                        3: { label: "Đang thực hiện", cls: "info" },
+                                                        4: { label: "Hoàn thành", cls: "success" },
+                                                        5: { label: "Đã hủy", cls: "danger" },
+                                                        6: { label: "Không đến", cls: "secondary" },
+                                                    };
+                                                    const st = statusMap[b.bookingStatus] || { label: b.bookingStatus ?? "—", cls: "secondary" };
+                                                    const services = Array.isArray(b.services) && b.services.length > 0
+                                                        ? b.services.map((s) => {
+                                                            if (s.name && typeof s.name === "string") return s.name;
+                                                            if (s.service && typeof s.service === "object") return s.service.name || "Dịch vụ";
+                                                            return "Dịch vụ";
+                                                        }).join(", ")
+                                                        : (b.serviceName || "—");
+                                                    const scheduledAt = b.scheduledAt
+                                                        ? new Date(b.scheduledAt).toLocaleString("vi-VN")
+                                                        : "—";
+                                                    return (
+                                                        <tr key={b.id || b._id}>
+                                                            <td><small>{b.bookingCode || (b.id || b._id || "").slice(-6)}</small></td>
+                                                            <td><small>{scheduledAt}</small></td>
+                                                            <td><small>{services}</small></td>
+                                                            <td><small>{Number(b.totalPrice || 0).toLocaleString("vi-VN")}đ</small></td>
+                                                            <td>
+                                                                <span className={`badge bg-${st.cls}`}>{st.label}</span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={closeDetailModal}>
+                                    Đóng
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default MyPetsPage;

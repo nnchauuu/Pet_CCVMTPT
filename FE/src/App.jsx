@@ -21,6 +21,7 @@ import BookingManagement from "./components/pages/admin/BookingManagement";
 import UserManagement from "./components/pages/admin/UserManagement";
 import ServiceManagement from "./components/pages/admin/ServiceManagement";
 import StaffManagement from "./components/pages/admin/StaffManagement";
+import MyPetsPage from "./components/pages/admin/MyPetsPage";
 
 function MainLayout({ children }) {
   return (
@@ -131,6 +132,7 @@ function App() {
             <Route path="services" element={<ServiceManagement />} />
             <Route path="staff" element={<StaffManagement />} />
             <Route path="pet-types" element={<PetTypeManagement />} />
+            <Route path="my-pets" element={<MyPetsPage />} />
           </Route>
           <Route
             path="*"
