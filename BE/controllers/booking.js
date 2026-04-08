@@ -33,10 +33,25 @@ module.exports = {
     },
     GetBookingDetailByCode: async function (code) {
         try {
-            return await bookingModel.findOne({ 
+            let booking = await bookingModel.findOne({ 
                 bookingCode: code, 
                 isDeleted: false 
             }).populate(['user', 'pet', 'services.service']);
+            
+            if (!booking) return false;
+
+            // 1. Chạy đi tìm xem Hóa đơn này đã được thanh toán THÀNH CÔNG chưa
+            let paymentTxModel = require('../schemas/paymentTransactions');
+            let payment = await paymentTxModel.findOne({ 
+                booking: booking._id,
+                paymentStatus: 'SUCCESS'
+            });
+
+            // 2. Ép kiểu và ghép thêm cục payment vào dữ liệu trả về
+            let result = booking.toObject();
+            result.paymentDetails = payment || null; 
+
+            return result;
         } catch (error) {
             return false;
         }
@@ -157,7 +172,17 @@ module.exports = {
 
     GetBookingDetail: async function (id) {
         try {
-            return await bookingModel.findById(id).populate(['user', 'pet', 'services.service']);
+            let booking = await bookingModel.findById(id).populate(['user', 'pet', 'services.service']);
+            
+            if (!booking) return false;
+            let paymentTxModel = require('../schemas/paymentTransactions');
+            let payment = await paymentTxModel.findOne({ 
+                booking: id,
+                paymentStatus: 'SUCCESS'
+            });
+            let result = booking.toObject();
+            result.paymentDetails = payment || null;
+            return result;
         } catch (error) {
             return false;
         }
