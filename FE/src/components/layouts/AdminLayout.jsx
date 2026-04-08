@@ -181,6 +181,17 @@ const AdminLayout = () => {
                   </div>
                   Quản lý Loại thú cưng
                 </NavLink>
+                <NavLink
+                  to="/admin/my-pets"
+                  className={({ isActive }) =>
+                    `nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  <div className="sb-nav-link-icon">
+                    <i className="fas fa-paw"></i>
+                  </div>
+                  Quản lý thú cưng
+                </NavLink>
               </div>
             </div>
             <div className="sb-sidenav-footer">
