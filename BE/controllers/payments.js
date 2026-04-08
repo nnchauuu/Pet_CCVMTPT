@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const bookingModel = require("../schemas/bookings");
 const paymentTxModel = require("../schemas/paymentTransactions");
 const voucherModel = require("../schemas/bookingVouchers");
+const { agenda } = require("../utils/backgroundHandler");
 
 const ONLINE_PAYMENT_METHODS = ["MOMO_PREPAID", "VNPAY_PREPAID"];
 
@@ -286,10 +287,19 @@ async function applySuccessfulPayment(tx, providerTransactionId, rawPayload) {
       }
     }
 
-    const booking = await bookingModel.findById(tx.booking);
+    const booking = await bookingModel.findById(tx.booking).populate("user");
     if (booking && !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(booking.bookingStatus)) {
       booking.bookingStatus = "CONFIRMED";
       await booking.save();
+
+      if (agenda && booking.user && booking.user.email) {
+        const timeString = new Date(booking.scheduledAt).toLocaleString("vi-VN");
+        await agenda.now("sendBookingEmailJob", {
+          email: booking.user.email,
+          bookingCode: booking.bookingCode,
+          time: timeString,
+        });
+      }
     }
   }
 
@@ -343,6 +353,15 @@ module.exports = {
     if (paymentMethod === "PAY_LATER") {
       booking.bookingStatus = "CONFIRMED";
       await booking.save();
+
+      if (agenda && booking.user && booking.user.email) {
+        const timeString = new Date(booking.scheduledAt).toLocaleString("vi-VN");
+        await agenda.now("sendBookingEmailJob", {
+          email: booking.user.email,
+          bookingCode: booking.bookingCode,
+          time: timeString,
+        });
+      }
 
       return {
         booking,

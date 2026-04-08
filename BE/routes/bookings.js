@@ -2,6 +2,7 @@ let express = require("express");
 let router = express.Router();
 let bookingController = require("../controllers/booking");
 let paymentsController = require("../controllers/payments");
+let paymentTxModel = require("../schemas/paymentTransactions");
 let { CheckLogin, checkRole } = require("../utils/authHandler");
 let { validatedResult, CreateBookingValidator } = require("../utils/validator");
 
@@ -19,7 +20,7 @@ const STATUS_STRING_TO_NUMBER = {
   NO_SHOW: 6,
 };
 
-function presentBooking(b) {
+function presentBooking(b, paidBookingIds) {
   if (!b) return null;
   const raw = typeof b.toObject === "function" ? b.toObject({ virtuals: true }) : b;
 
@@ -41,8 +42,10 @@ function presentBooking(b) {
       })
     : [];
 
+  const bookingId = String(raw._id || raw.id || "");
+
   return {
-    id: String(raw._id || raw.id || ""),
+    id: bookingId,
     bookingCode: raw.bookingCode || "",
     scheduledAt: raw.scheduledAt,
     expectedEndTime: raw.expectedEndTime,
@@ -53,7 +56,7 @@ function presentBooking(b) {
     petName: petObj?.name || "",
     petId: String(petObj?._id || petObj?.id || raw.pet || ""),
     services,
-    isPaid: false,
+    isPaid: paidBookingIds ? paidBookingIds.has(bookingId) : false,
     createdAt: raw.createdAt,
   };
 }
@@ -77,7 +80,15 @@ router.get("/week", CheckLogin, checkRole("ADMIN"), async function (req, res) {
 router.get("/me", CheckLogin, async function (req, res) {
   try {
     let bookings = await bookingController.GetUserBookings(req.user.id);
-    let result = bookings.map(presentBooking);
+
+    const bookingIds = bookings.map((b) => b._id);
+    const paidTxs = await paymentTxModel.find({
+      booking: { $in: bookingIds },
+      paymentStatus: "SUCCESS",
+    }).select("booking").lean();
+    const paidBookingIds = new Set(paidTxs.map((tx) => String(tx.booking)));
+
+    let result = bookings.map((b) => presentBooking(b, paidBookingIds));
     if (req.query.petId) {
       result = result.filter((b) => b.petId === req.query.petId);
     }
@@ -105,7 +116,14 @@ router.get("/me/:bookingId", CheckLogin, async function (req, res) {
     if (String(booking.user?._id || booking.user) !== String(req.user.id)) {
       return res.status(403).send({ success: false, message: "Bạn không có quyền xem lịch hẹn này." });
     }
-    res.send({ success: true, data: presentBooking(booking) });
+
+    const paidTx = await paymentTxModel.findOne({
+      booking: booking._id,
+      paymentStatus: "SUCCESS",
+    }).select("_id").lean();
+    const paidBookingIds = new Set(paidTx ? [String(booking._id)] : []);
+
+    res.send({ success: true, data: presentBooking(booking, paidBookingIds) });
   } catch (err) {
     res.status(400).send({ success: false, message: err.message });
   }

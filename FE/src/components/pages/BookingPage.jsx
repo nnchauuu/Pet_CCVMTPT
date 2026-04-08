@@ -339,7 +339,7 @@ const BookingPage = () => {
       }
 
       const response = await fetch(
-        `/api/pet/user/${currentUserId}`,
+        `http://localhost:8080/api/pet/user/${currentUserId}`,
         {
           method: "POST",
           headers: {
