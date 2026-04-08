@@ -1,7 +1,27 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
+import { defineConfig } from 'vite';
+import plugin from '@vitejs/plugin-react';
+import fs from 'fs'
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+    plugins: [plugin()],
+    server: {
+        https: {
+            key: fs.readFileSync('./localhost-key.pem'),
+            cert: fs.readFileSync('./localhost.pem'),
+        },
+        proxy: {
+            '/api': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/uploads': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false,
+            },
+        },
+        port: 5173,
+        strictPort: true,
+    }
 })
