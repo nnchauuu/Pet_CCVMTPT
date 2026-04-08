@@ -29,6 +29,41 @@ async function uploadPetImage(file) {
   return `/uploads/${result.filename}`;
 }
 
+function normalizeBookingService(serviceItem) {
+  const serviceInfo =
+    serviceItem?.service && typeof serviceItem.service === "object"
+      ? serviceItem.service
+      : serviceItem;
+
+  return {
+    id: String(serviceInfo?.id || serviceInfo?._id || ""),
+    name: serviceInfo?.name || "Dịch vụ",
+    price: Number(serviceItem?.priceAtTime ?? serviceInfo?.price ?? 0),
+  };
+}
+
+function normalizeBookingResult(booking) {
+  if (!booking) return null;
+
+  const petInfo = booking?.pet && typeof booking.pet === "object" ? booking.pet : null;
+  const normalizedServices = Array.isArray(booking?.services)
+    ? booking.services.map(normalizeBookingService)
+    : [];
+
+  return {
+    ...booking,
+    id: String(booking.id || booking._id || ""),
+    bookingCode: booking.bookingCode || "",
+    scheduledAt: booking.scheduledAt || "",
+    expectedEndTime: booking.expectedEndTime || "",
+    totalPrice: Number(booking.totalPrice || 0),
+    notes: booking.notes || "",
+    bookingStatus: booking.bookingStatus || "PENDING",
+    petName: booking.petName || petInfo?.name || "",
+    services: normalizedServices,
+  };
+}
+
 const BookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -371,7 +406,7 @@ const BookingPage = () => {
       if (result.success) {
         if (authToken) await fetchMyVouchers(authToken);
         setSelectedVoucherCode("");
-        setBookingResult(result.data);
+        setBookingResult(normalizeBookingResult(result.data));
         setShowConfirmModal(true);
       } else {
         throw new Error(result.message);
@@ -506,12 +541,21 @@ const BookingPage = () => {
       4: "Hoàn thành",
       5: "Đã hủy",
       6: "Vắng mặt",
+      PENDING: "Chờ xác nhận",
+      PENDING_PAYMENT: "Chờ thanh toán",
+      CONFIRMED: "Đã xác nhận",
+      IN_PROGRESS: "Đang thực hiện",
+      COMPLETED: "Hoàn thành",
+      CANCELLED: "Đã hủy",
+      NO_SHOW: "Vắng mặt",
     };
     return map[status] || "Không xác định";
   };
 
   const getPetTypeName = (petTypeId) => {
-    const t = petTypes.find((pt) => pt.id === Number(petTypeId));
+    if (!petTypeId) return "";
+    const id = String(petTypeId);
+    const t = petTypes.find((pt) => String(pt._id || pt.id) === id);
     return t ? t.name : "";
   };
 
@@ -1317,7 +1361,7 @@ const BookingPage = () => {
                       >
                         <option value="">-- Chọn loại --</option>
                         {petTypes.map((type) => (
-                          <option key={type.id} value={type.id}>
+                          <option key={type._id || type.id} value={type._id || type.id}>
                             {type.name}
                           </option>
                         ))}

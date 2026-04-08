@@ -37,11 +37,6 @@ function Header() {
                             </NavLink>
                         </li>
                         <li className="nav-item">
-                            <NavLink to="/articles" className="nav-link">
-                                Cẩm nang
-                            </NavLink>
-                        </li>
-                        <li className="nav-item">
                             <NavLink to="/booking" className="nav-link">
                                 Đặt ngay
                             </NavLink>
@@ -51,11 +46,6 @@ function Header() {
                                 <li className="nav-item">
                                     <NavLink to="/bookings" className="nav-link">
                                         Danh sách lịch hẹn
-                                    </NavLink>
-                                </li>
-                                <li className="nav-item">
-                                    <NavLink to="/booking/details/latest" className="nav-link">
-                                        Chi tiết lịch hẹn
                                     </NavLink>
                                 </li>
                                 <li className="nav-item">
@@ -106,11 +96,6 @@ function Header() {
                                     <li>
                                         <NavLink to="/bookings" className="dropdown-item">
                                             Danh sách lịch hẹn
-                                        </NavLink>
-                                    </li>
-                                    <li>
-                                        <NavLink to="/booking/details/latest" className="dropdown-item">
-                                            Chi tiết lịch hẹn
                                         </NavLink>
                                     </li>
                                     <li>
