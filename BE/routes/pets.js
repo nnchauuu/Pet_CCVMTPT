@@ -3,7 +3,7 @@ const router = express.Router();
 const petModel = require("../schemas/pets");
 const petTypeModel = require("../schemas/petTypes");
 const { CheckLogin } = require("../utils/authHandler");
-
+let petController = require('../controllers/pets');
 function ensureSameUser(req, res) {
   if (String(req.user.id) !== String(req.params.userId)) {
     res.status(403).send({
@@ -87,5 +87,18 @@ router.post("/user/:userId", CheckLogin, async function (req, res) {
     });
   }
 });
-
+router.post("/", async function (req, res) {
+    let pet = await petController.CreatePet(
+        req.body.user,
+        req.body.name,
+        req.body.petType,
+        req.body.age
+    );
+    if (!pet) return res.status(400).send({ success: false, message: "Lỗi tạo thú cưng" });
+    res.send({ success: true, data: pet });
+});
+router.get("/userPets/:userId", async function (req, res) {
+    let pets = await petController.GetPetsByUser(req.params.userId);
+    res.send({ success: true, data: pets });
+});
 module.exports = router;
