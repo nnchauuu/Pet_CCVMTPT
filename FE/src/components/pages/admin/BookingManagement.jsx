@@ -825,9 +825,15 @@ const BookingManagement = () => {
                                         </button>
                                     )}
                                     {selectedBooking.bookingStatus === 'IN_PROGRESS' && (
+                                        selectedBooking.paymentDetails && selectedBooking.paymentDetails.paymentStatus === 'SUCCESS' ? (
+                                            <button className="btn btn-success fw-bold" onClick={handlePaymentConfirm} disabled={updatingStatus}>
+                                                3. Hoàn thành (Khách đã thanh toán)
+                                            </button>
+                                        ) : (
                                         <button type="button" className="btn btn-success fw-bold me-2" onClick={() => setShowPaymentModal(true)} disabled={updatingStatus}>
                                             {updatingStatus ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-hand-holding-usd me-2"></i>} Hoàn thành & Thu tiền
                                         </button>
+                                        )
                                     )}
                                     <button type="button" className="btn btn-secondary" onClick={() => setShowDetailModal(false)}>Đóng</button>
                                 </div>
